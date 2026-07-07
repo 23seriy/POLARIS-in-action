@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: polaris-demo
+  labels:
+    name: polaris-demo
+    env: demo
+    team: platform

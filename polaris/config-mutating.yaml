@@ -1,0 +1,48 @@
+# Mutating webhook configuration — auto-remediate instead of just rejecting.
+# Polaris can act as both a validating AND mutating admission controller.
+# This config enables mutation for common issues.
+#
+# When a pod is missing resource requests, probes, or uses insecure settings,
+# Polaris will fix them automatically instead of blocking the deployment.
+
+checks:
+  # -- Security (mutatable) --
+  hostIPCSet: danger
+  hostPIDSet: danger
+  hostNetworkSet: danger
+  hostPortSet: warning
+  runAsRootAllowed: danger
+  runAsPrivileged: danger
+  privilegeEscalationAllowed: danger
+  notReadOnlyRootFilesystem: warning
+  insecureCapabilities: warning
+  dangerousCapabilities: danger
+
+  # -- Efficiency (mutatable) --
+  cpuRequestsMissing: warning
+  cpuLimitsMissing: warning
+  memoryRequestsMissing: warning
+  memoryLimitsMissing: warning
+
+  # -- Reliability (mutatable) --
+  readinessProbeMissing: warning
+  livenessProbeMissing: warning
+  tagNotSpecified: danger
+  pullPolicyNotAlways: warning
+
+mutations:
+  - pullPolicyNotAlways
+  - runAsRootAllowed
+  - privilegeEscalationAllowed
+  - notReadOnlyRootFilesystem
+  - cpuRequestsMissing
+  - cpuLimitsMissing
+  - memoryRequestsMissing
+  - memoryLimitsMissing
+  - readinessProbeMissing
+  - insecureCapabilities
+
+exemptions:
+  - namespace: kube-system
+  - namespace: polaris
+  - namespace: cert-manager

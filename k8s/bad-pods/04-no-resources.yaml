@@ -1,0 +1,37 @@
+# Violates: cpuRequestsMissing + memoryRequestsMissing +
+#           cpuLimitsMissing + memoryLimitsMissing (efficiency)
+# Polaris flags this because the container has no resource requests or limits.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-no-resources
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: no-resources
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:v1
+      imagePullPolicy: Always
+      # No resources block → Polaris warning on all four resource checks
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 10001
+        capabilities:
+          drop: ["ALL"]

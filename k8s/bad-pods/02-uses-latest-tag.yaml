@@ -1,0 +1,42 @@
+# Violates: tagNotSpecified (reliability)
+# Polaris flags this because the image uses :latest (or no tag at all).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-latest
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: uses-latest
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:latest
+      imagePullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 10001
+        capabilities:
+          drop: ["ALL"]

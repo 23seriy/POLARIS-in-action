@@ -1,0 +1,66 @@
+# Polaris configuration for the demo.
+# This is the core config that controls which checks are active and at what severity.
+# Docs: https://polaris.docs.fairwinds.com/customization/configuration/
+
+checks:
+  # -- Security checks --
+  hostIPCSet: danger
+  hostPIDSet: danger
+  hostNetworkSet: danger
+  hostPortSet: warning
+  runAsRootAllowed: danger
+  runAsPrivileged: danger
+  privilegeEscalationAllowed: danger
+  notReadOnlyRootFilesystem: warning
+  insecureCapabilities: warning
+  dangerousCapabilities: danger
+  automountServiceAccountToken: warning
+  linuxHardening: warning
+
+  # -- Efficiency checks --
+  cpuRequestsMissing: warning
+  cpuLimitsMissing: warning
+  memoryRequestsMissing: warning
+  memoryLimitsMissing: warning
+
+  # -- Reliability checks --
+  readinessProbeMissing: warning
+  livenessProbeMissing: warning
+  tagNotSpecified: danger
+  pullPolicyNotAlways: warning
+  priorityClassNotSet: ignore
+  deploymentMissingReplicas: warning
+  missingPodDisruptionBudget: ignore
+  topologySpreadConstraint: ignore
+
+  # -- Custom checks (defined below) --
+  teamLabelRequired: warning
+
+customChecks:
+  teamLabelRequired:
+    successMessage: Pod has the required 'team' label
+    failureMessage: Pod is missing the required 'team' label
+    category: Reliability
+    target: Pod
+    schema:
+      '$schema': http://json-schema.org/draft-07/schema
+      type: object
+      required: ["metadata"]
+      properties:
+        metadata:
+          type: object
+          required: ["labels"]
+          properties:
+            labels:
+              type: object
+              required: ["team"]
+              properties:
+                team:
+                  type: string
+                  minLength: 1
+
+exemptions:
+  # Don't scan the kube-system namespace or Polaris's own pods
+  - namespace: kube-system
+  - namespace: polaris
+  - namespace: cert-manager

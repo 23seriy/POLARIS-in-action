@@ -1,0 +1,46 @@
+# Violates: hostNetworkSet + hostPIDSet + hostIPCSet (security)
+# Polaris flags this because the pod uses hostNetwork, hostPID, and hostIPC,
+# which allows access to the host's network stack and process namespace.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-host-network
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: host-network
+spec:
+  hostNetwork: true
+  hostPID: true
+  hostIPC: true
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:v1
+      imagePullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 10001
+        capabilities:
+          drop: ["ALL"]

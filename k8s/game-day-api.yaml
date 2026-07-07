@@ -1,0 +1,86 @@
+# Compliant workload. Passes every Polaris check in this demo:
+#   - pinned image tag (no :latest)
+#   - resource requests + limits (efficiency)
+#   - liveness and readiness probes (reliability)
+#   - runs as a non-root user, no privilege escalation, drops all caps (security)
+#   - read-only root filesystem
+#   - pullPolicy: Always
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-day-api
+  namespace: polaris-demo
+  labels:
+    app: game-day-api
+    team: lakers
+    env: demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: game-day-api
+  template:
+    metadata:
+      labels:
+        app: game-day-api
+        team: lakers
+        env: demo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: game-day-api
+          image: game-day-api:v1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: APP_VERSION
+              value: "v1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game-day-api
+  namespace: polaris-demo
+  labels:
+    app: game-day-api
+    team: lakers
+    env: demo
+spec:
+  selector:
+    app: game-day-api
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP

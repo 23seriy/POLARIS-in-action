@@ -1,0 +1,38 @@
+# Violates: runAsRootAllowed (security)
+# Polaris flags this because the container can run as UID 0.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-root
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: runs-as-root
+spec:
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:v1
+      imagePullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      # No runAsNonRoot: true → Polaris danger: runAsRootAllowed
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]

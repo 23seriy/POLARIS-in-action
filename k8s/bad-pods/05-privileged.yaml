@@ -1,0 +1,39 @@
+# Violates: runAsPrivileged + privilegeEscalationAllowed +
+#           dangerousCapabilities (security)
+# Polaris flags this because the container runs privileged with escalation
+# allowed and has dangerous capabilities like SYS_ADMIN.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-privileged
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: privileged
+spec:
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:v1
+      imagePullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      securityContext:
+        privileged: true
+        allowPrivilegeEscalation: true
+        capabilities:
+          add: ["SYS_ADMIN", "NET_ADMIN"]

@@ -1,0 +1,43 @@
+# Violates: insecureCapabilities + notReadOnlyRootFilesystem (security)
+# Polaris flags this because the container has insecure Linux capabilities
+# (NET_RAW, DAC_OVERRIDE) and a writable root filesystem.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bench-warmer-insecure-caps
+  namespace: polaris-demo
+  labels:
+    app: bench-warmer
+    scenario: insecure-caps
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+  containers:
+    - name: bench-warmer
+      image: bench-warmer:v1
+      imagePullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: false
+        runAsNonRoot: true
+        runAsUser: 10001
+        capabilities:
+          add: ["NET_RAW", "DAC_OVERRIDE"]
