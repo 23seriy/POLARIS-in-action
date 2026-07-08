@@ -198,10 +198,24 @@ info "Enabling the Polaris validating webhook to REJECT bad pods at admission."
 echo ""
 
 info "Upgrading Polaris Helm release to enable the webhook..."
+info "(Using failurePolicy=Ignore initially so webhook pods can start)"
 helm upgrade polaris fairwinds-stable/polaris \
     --namespace "$POLARIS_NS" \
     --set dashboard.enable=true \
     --set webhook.enable=true \
+    --set webhook.failurePolicy=Ignore \
+    --set-file config="$PROJECT_DIR/polaris/config.yaml" \
+    --wait --timeout=5m
+
+info "Waiting for webhook pods to be ready..."
+kubectl -n "$POLARIS_NS" rollout status deploy/polaris-webhook --timeout=3m
+
+info "Switching webhook to failurePolicy=Fail for strict enforcement..."
+helm upgrade polaris fairwinds-stable/polaris \
+    --namespace "$POLARIS_NS" \
+    --set dashboard.enable=true \
+    --set webhook.enable=true \
+    --set webhook.failurePolicy=Fail \
     --set-file config="$PROJECT_DIR/polaris/config.yaml" \
     --wait --timeout=3m
 
@@ -239,6 +253,7 @@ helm upgrade polaris fairwinds-stable/polaris \
     --namespace "$POLARIS_NS" \
     --set dashboard.enable=true \
     --set webhook.enable=true \
+    --set webhook.failurePolicy=Fail \
     --set-file config="$PROJECT_DIR/polaris/config-strict.yaml" \
     --wait --timeout=3m
 
