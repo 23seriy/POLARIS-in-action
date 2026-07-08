@@ -58,7 +58,7 @@ info "Installing cert-manager (required for webhook TLS)..."
 helm upgrade --install cert-manager jetstack/cert-manager \
     --namespace cert-manager \
     --create-namespace \
-    --set crds.install=true \
+    --set crds.enabled=true \
     --wait --timeout=3m
 
 info "Waiting for cert-manager (up to 3 min)..."
