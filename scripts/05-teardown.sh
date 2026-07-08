@@ -34,6 +34,11 @@ info "Uninstalling Polaris..."
 helm uninstall polaris -n "$POLARIS_NS" 2>/dev/null || true
 kubectl delete namespace "$POLARIS_NS" --ignore-not-found 2>/dev/null || true
 
+# Uninstall cert-manager
+info "Uninstalling cert-manager..."
+helm uninstall cert-manager -n cert-manager 2>/dev/null || true
+kubectl delete namespace cert-manager --ignore-not-found 2>/dev/null || true
+
 # Delete Minikube profile
 info "Deleting Minikube profile '$PROFILE'..."
 minikube delete -p "$PROFILE"
