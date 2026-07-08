@@ -47,10 +47,23 @@ minikube start \
     --memory="$MEMORY" \
     --driver=docker
 
-# Add Helm repo
-info "Adding Fairwinds Helm repository..."
+# Add Helm repos
+info "Adding Helm repositories..."
 helm repo add fairwinds-stable https://charts.fairwinds.com/stable --force-update
+helm repo add jetstack https://charts.jetstack.io --force-update
 helm repo update
+
+# Install cert-manager — required for the Polaris webhook TLS certificates (scenario 8).
+info "Installing cert-manager (required for webhook TLS)..."
+helm upgrade --install cert-manager jetstack/cert-manager \
+    --namespace cert-manager \
+    --create-namespace \
+    --set crds.install=true \
+    --wait --timeout=3m
+
+info "Waiting for cert-manager (up to 3 min)..."
+kubectl -n cert-manager rollout status deploy/cert-manager --timeout=3m
+kubectl -n cert-manager rollout status deploy/cert-manager-webhook --timeout=3m
 
 # Helpers for surfacing what went wrong when a deploy gets stuck.
 diagnose_namespace() {
