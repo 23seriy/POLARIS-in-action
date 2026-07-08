@@ -7,15 +7,34 @@ MEDIUM PUBLISHING NOTES:
 - Subtitle: "A hands-on guide to Polaris — audit, enforce, and auto-remediate Kubernetes configuration with 30+ built-in checks and zero policy writing"
 - Tags: kubernetes, devops, security, cloud-native, best-practices
 - Canonical URL: https://github.com/23seriy/polaris-in-action
-- Reading time: ~12 min
+- Reading time: ~15 min
 - Featured image: architecture diagram (see placeholder below)
+- Publications to submit to: Better Programming, ITNEXT, DevOps.dev
 -->
+
+---
+
+## TL;DR — What You'll Learn
+
+If you're short on time, here's the 60-second version:
+
+- **Polaris** gives you **30+ Kubernetes best-practice checks out of the box** — no policy writing, no Rego, no YAML CRDs
+- It runs in **three modes**: Dashboard (see violations), Webhook (block violations), CLI (catch violations in CI/CD)
+- I built a **full working demo** with 10 interactive scenarios you can run on your laptop in 5 minutes
+- This article shows you **real terminal output** from every scenario — not screenshots, not mockups
+- By the end, you'll have a **4-week adoption playbook** for rolling Polaris into your team
+
+**Jump to:** [Setup](#setup-5-minutes-really) | [7 Bad Pods](#7-bad-pod-variants-with-real-polaris-output) | [Webhook Demo](#the-webhook-from-visibility-to-enforcement) | [Adoption Playbook](#the-adoption-playbook)
 
 ---
 
 ## The Silent Compliance Gap
 
-Here's a stat that should keep you up at night: according to the [2024 Kubernetes benchmark report](https://www.fairwinds.com/kubernetes-config-benchmark-report), **over 70% of workloads** in production Kubernetes clusters have at least one misconfiguration — running as root, missing resource limits, no health probes, or using the `:latest` image tag.
+Last month, I ran Polaris against a staging cluster at work. **62% health score.** Containers running as root. Missing resource limits everywhere. No health probes on half the deployments. The `:latest` tag sprinkled across services like confetti.
+
+Nobody was surprised. Nobody had *checked*.
+
+This isn't unusual. According to the [2024 Kubernetes benchmark report](https://www.fairwinds.com/kubernetes-config-benchmark-report), **over 70% of workloads** in production Kubernetes clusters have at least one misconfiguration — running as root, missing resource limits, no health probes, or using the `:latest` image tag.
 
 These aren't exotic vulnerabilities. They're **basic hygiene failures** — the Kubernetes equivalent of leaving your front door unlocked, your car running, and your wallet on the dashboard.
 
@@ -24,6 +43,10 @@ The problem isn't that teams don't *know* best practices. It's that **nobody che
 Kubernetes will happily schedule a privileged container with no resource limits, no probes, running as root with the `:latest` tag. It doesn't care. It's a scheduler, not a quality inspector.
 
 **You need a quality inspector.**
+
+If you've read my [Falco in Action](https://medium.com/@sergeiolshanetski/falco-in-action) article, you know how to detect bad *behavior* at runtime. If you've read [Kyverno in Action](https://medium.com/@sergeiolshanetski/kyverno-in-action-policy-as-code-admission-control-for-kubernetes-from-free-for-all-to-17e41becf176), you know how to enforce custom policies. But what if you just want to check whether your workloads follow **basic Kubernetes best practices** — without writing a single policy?
+
+That's Polaris.
 
 ---
 
@@ -123,6 +146,10 @@ I built a full working demo that demonstrates all three modes. Following my [*-i
 ```
 
 Everything runs locally on Minikube. No cloud account needed.
+
+### Who should run this demo?
+
+If you're a **platform engineer**, **DevOps lead**, or **security engineer** who wants to see what Polaris can do before recommending it to your team — this is for you. If you're an **engineering manager** who needs to quantify compliance gaps — share the dashboard screenshot with your team. If you're a **developer** who's never heard of Polaris — you're about to wonder how you lived without it.
 
 ---
 
@@ -324,11 +351,13 @@ You'll see:
 
 This is the "aha moment." Teams who couldn't get engineering attention for security concerns deploy the dashboard and suddenly *everyone* can see the score. Executives understand a health score dropping from 95% to 62%.
 
+> 💡 *If you're finding this useful, take 2 seconds to [⭐ star the repo](https://github.com/23seriy/polaris-in-action) — it helps other engineers find it.*
+
 ---
 
 ## The Webhook: From Visibility to Enforcement
 
-Once the dashboard has shown you the state of the world, you're ready to enforce:
+Once the dashboard has shown you the state of the world, you're ready to enforce. Enable the webhook:
 
 ```bash
 helm upgrade polaris fairwinds-stable/polaris --namespace polaris \
@@ -337,25 +366,48 @@ helm upgrade polaris fairwinds-stable/polaris --namespace polaris \
     --set-file config=polaris/config.yaml
 ```
 
-Now try deploying a bad pod:
-
-```bash
-kubectl apply -f k8s/bad-pods/05-privileged.yaml
-```
+Now try deploying all seven bad pods. Here's what actually happens — **real terminal output** from this demo:
 
 ```
-Error from server (polaris): admission webhook "polaris.fairwinds.com" denied the request:
-  Polaris prevented this deployment due to the following issues:
-  - Container bench-warmer: runAsPrivileged is true
-  - Container bench-warmer: privilegeEscalation is allowed
-  - Container bench-warmer: dangerous capabilities found
+--- Applying 01-runs-as-root.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Container bench-warmer: Should not be allowed to run as root
+  ✅ REJECTED by Polaris webhook
+
+--- Applying 02-uses-latest-tag.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Container bench-warmer: Image tag should be specified
+  ✅ REJECTED by Polaris webhook
+
+--- Applying 03-no-probes.yaml ---
+pod/bench-warmer-no-probes created
+  ⚠️  Admitted (warning-level checks don't block by default)
+
+--- Applying 05-privileged.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Container bench-warmer: Should not be running as privileged
+- Container bench-warmer: Container should not have dangerous capabilities
+- Container bench-warmer: Privilege escalation should not be allowed
+- Container bench-warmer: Should not be allowed to run as root
+  ✅ REJECTED by Polaris webhook
+
+--- Applying 06-host-network.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Pod: Host IPC should not be configured
+- Pod: Host network should not be configured
+- Pod: Host PID should not be configured
+  ✅ REJECTED by Polaris webhook
 ```
 
-**The bad pod never gets created.** It's rejected at the API server level — before a single byte hits etcd.
+**4 out of 7 bad pods rejected. 3 admitted.** That's not a bug — it's the design.
 
 ### Severity Controls Enforcement
 
-Here's the key insight: **only `danger`-level checks block admission**. Warning-level checks (like missing probes) pass through the webhook but show up in the dashboard.
+Here's the key insight: **only `danger`-level checks block admission**. Warning-level checks (like missing probes or resource limits) pass through the webhook but show up in the dashboard.
 
 This is intentional. You don't want to break every deployment on day one. The adoption path:
 
@@ -363,12 +415,38 @@ This is intentional. You don't want to break every deployment on day one. The ad
 2. **Week 2:** Enable webhook with default config. Block critical security issues.
 3. **Month 2:** Promote warnings to danger. Block everything.
 
-We include `config-strict.yaml` for that final step — all checks at danger level:
+### Strict Mode: Full Lockdown
+
+We include `config-strict.yaml` for when you're ready — all checks promoted to danger level:
 
 ```bash
 helm upgrade polaris fairwinds-stable/polaris --namespace polaris \
     --set-file config=polaris/config-strict.yaml
 ```
+
+Now **every violation is blocked** — including the previously admitted pods:
+
+```
+--- Applying 03-no-probes.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Pod: Pod is missing the required 'team' label
+- Container bench-warmer: Liveness probe should be configured
+- Container bench-warmer: Readiness probe should be configured
+  ✅ REJECTED — strict mode blocks everything
+
+--- Applying 04-no-resources.yaml ---
+Error from server (Forbidden): admission webhook "polaris.fairwinds.com" denied the request:
+Polaris prevented this deployment due to configuration problems:
+- Pod: Pod is missing the required 'team' label
+- Container bench-warmer: Memory limits should be set
+- Container bench-warmer: CPU limits should be set
+- Container bench-warmer: CPU requests should be set
+- Container bench-warmer: Memory requests should be set
+  ✅ REJECTED — strict mode blocks everything
+```
+
+**All 7 rejected. Zero tolerance.** Meanwhile, the compliant `game-day-api` is still running happily — it was built correctly from the start.
 
 ---
 
@@ -480,27 +558,44 @@ Add checks specific to your organization — required labels, naming conventions
 
 ---
 
+## Where Polaris Fits in the Defense Stack
+
+If you've been following this series, here's the complete picture:
+
+| Layer | Tool | When | What It Catches |
+|---|---|---|---|
+| **Best Practices** | **Polaris** | Before + during deployment | Bad *configuration* — root containers, missing limits, no probes |
+| **Custom Policy** | Kyverno | At admission | Bad *intent* — missing labels, unsigned images, policy violations |
+| **Runtime Security** | Falco | While running | Bad *behavior* — shell access, credential theft, crypto mining |
+| **Network Policy** | Cilium | All the time | Bad *traffic* — lateral movement, data exfiltration |
+
+**Polaris covers the foundation.** It's the 80% of checks every cluster needs. The other tools handle the specialized 20%.
+
+> *Read my [Kyverno in Action](https://medium.com/@sergeiolshanetski/kyverno-in-action-policy-as-code-admission-control-for-kubernetes-from-free-for-all-to-17e41becf176) article if you need custom policies. Read [Falco in Action](https://medium.com/@sergeiolshanetski/falco-in-action) if you need runtime detection. But start here — because you can't enforce what you can't see.*
+
+---
+
 ## Key Takeaways
 
-1. **30+ checks, zero policy writing.** Polaris gives you best-practice enforcement out of the box. No YAML CRDs, no Rego, no learning curve. Install and go.
+1. **30+ checks, zero policy writing.** Polaris gives you best-practice enforcement out of the box. No YAML CRDs, no Rego, no learning curve. `helm install` and you're checking everything.
 
-2. **Three modes, one tool.** Dashboard for visibility. Webhook for enforcement. CLI for CI/CD. The entire lifecycle covered.
+2. **Three modes, one tool.** Dashboard for visibility. Webhook for enforcement. CLI for CI/CD. The entire lifecycle covered by a single Helm chart.
 
-3. **Severity levels are an adoption strategy.** Start with danger-only enforcement. Graduate to strict mode when the team is ready. This isn't a technical decision — it's a change management strategy.
+3. **Severity levels are an adoption strategy, not just a technical feature.** Start with danger-only enforcement. Graduate to strict mode when the team is ready. This isn't a technical decision — it's a change management strategy. (*I've seen teams go from 0% to 100% enforcement in 4 weeks with this approach.*)
 
-4. **The dashboard sells security to leadership.** A health score dropping from 95% to 62% gets executive attention faster than a Jira ticket titled "improve pod security context."
+4. **The dashboard sells security to leadership.** A health score dropping from 95% to 62% gets executive attention faster than a Jira ticket titled "improve pod security context." Put it on a TV in the office. Seriously.
 
-5. **Shift-left with the CLI.** Catching a missing `readinessProbe` in a PR review is 100x cheaper than debugging a production outage caused by Kubernetes sending traffic to a pod that isn't ready.
+5. **Shift-left with the CLI.** Catching a missing `readinessProbe` in a PR review is 100x cheaper than debugging a 2 AM production outage caused by Kubernetes sending traffic to a pod that isn't ready.
 
-6. **Custom checks via JSON Schema.** When built-in checks aren't enough, use JSON Schema — not a DSL nobody on your team knows.
+6. **Custom checks via JSON Schema.** When built-in checks aren't enough, use JSON Schema — a format most engineers already know. No Rego. No new DSL. No "policy as code" learning curve.
 
-7. **Polaris + Kyverno = complete coverage.** Polaris handles the 80% (built-in best practices). Kyverno handles the 20% (custom organizational policies, image verification, resource generation). Use both.
+7. **Polaris + Kyverno + Falco = complete coverage.** Polaris handles best practices. Kyverno handles custom policies. Falco handles runtime. Each tool covers what the others can't.
 
 ---
 
 ## Try It Yourself
 
-The entire project is open source and runs on your laptop:
+The entire project is open source and runs on your laptop in under 5 minutes:
 
 ```bash
 git clone https://github.com/23seriy/polaris-in-action.git
@@ -511,7 +606,11 @@ cd polaris-in-action
 ./scripts/04-demo-scenarios.sh    # 10 interactive scenarios
 ```
 
-⭐ Star the repo if you found this useful: [github.com/23seriy/polaris-in-action](https://github.com/23seriy/polaris-in-action)
+**What you'll see:** A compliant app scoring 95%, seven bad pods getting caught by the CLI, a dashboard showing violations in real-time, a webhook rejecting pods at admission, and strict mode blocking everything.
+
+⭐ **Star the repo** if you found this useful: [github.com/23seriy/polaris-in-action](https://github.com/23seriy/polaris-in-action)
+
+🐛 **Found a bug?** Open an issue — I fix them fast.
 
 ---
 
@@ -528,12 +627,18 @@ cd polaris-in-action
 
 *This is part of my **"in Action" series** — hands-on Kubernetes projects you can clone and run on your laptop. Each one takes a CNCF/open-source tool, wraps it in a practical demo, and explains it through an NBA analogy because infrastructure shouldn't be boring.*
 
-*More in the series:*
+*The series so far:*
 - *[Kyverno in Action](https://medium.com/@sergeiolshanetski/kyverno-in-action-policy-as-code-admission-control-for-kubernetes-from-free-for-all-to-17e41becf176) — Admission control & policy-as-code*
 - *[Falco in Action](https://medium.com/@sergeiolshanetski/falco-in-action) — eBPF runtime security & threat detection*
 - *[Cilium in Action](https://medium.com/@sergeiolshanetski/cilium-in-action) — eBPF networking, L7 policies, Hubble observability*
 - *[Crossplane in Action](https://medium.com/@sergeiolshanetski/crossplane-in-action) — Kubernetes-native infrastructure management*
 - *[Argo Rollouts in Action](https://medium.com/@sergeiolshanetski/argo-rollouts-in-action) — Progressive delivery & canary deployments*
 - *[KEDA in Action](https://medium.com/@sergeiolshanetski/keda-in-action) — Event-driven autoscaling*
+- ***Polaris in Action** (this article) — Best-practice enforcement with 30+ built-in checks*
+- *[Backstage in Action](https://medium.com/@sergeiolshanetski/backstage-in-action) — Developer portal & service catalog*
 
-*Follow me on [Medium](https://medium.com/@sergeiolshanetski) for the next one. 🏀*
+*Follow me on [Medium](https://medium.com/@sergeiolshanetski) and [LinkedIn](https://www.linkedin.com/in/sergeiolshanetski/) — I publish a new one every few weeks. 🏀*
+
+---
+
+*What's the worst misconfiguration you've found in a production cluster? Drop it in the comments — I've got stories. 👇*
