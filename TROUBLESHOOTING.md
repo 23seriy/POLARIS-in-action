@@ -9,6 +9,7 @@ Common issues and solutions for polaris-in-action.
 **Symptoms**: `minikube start` hangs or fails with resource errors.
 
 **Fix**:
+
 ```bash
 # Check available resources
 docker system df
@@ -32,6 +33,7 @@ minikube delete -p polaris-demo
 **Symptoms**: `kubectl port-forward` fails or dashboard doesn't load.
 
 **Fix**:
+
 ```bash
 # Check Polaris pods are running
 kubectl get pods -n polaris
@@ -46,6 +48,7 @@ kubectl port-forward svc/polaris-dashboard 8080:80 -n polaris
 **Symptoms**: Bad pods are admitted even with webhook enabled.
 
 **Fix**:
+
 ```bash
 # Verify webhook is enabled
 kubectl get validatingwebhookconfigurations | grep polaris

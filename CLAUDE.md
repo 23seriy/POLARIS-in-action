@@ -51,7 +51,7 @@ Polaris supports custom checks via JSON Schema. This project includes a custom `
 
 ## File Structure
 
-```
+```text
 polaris-in-action/
 ├── apps/
 │   ├── game-day-api/        # Compliant Flask app (Dockerfile: multi-stage, non-root UID 10001)
