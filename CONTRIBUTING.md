@@ -23,6 +23,7 @@ This project adheres to a Code of Conduct. Please review [CODE_OF_CONDUCT.md](CO
 ### Testing Your Changes
 
 For **script changes**:
+
 ```bash
 chmod +x scripts/*.sh
 ./scripts/02-start-cluster.sh      # Fresh cluster
@@ -32,6 +33,7 @@ chmod +x scripts/*.sh
 ```
 
 For **Polaris config changes**:
+
 ```bash
 # Test a config against a YAML file
 polaris audit --audit-path k8s/<manifest>.yaml --config polaris/config.yaml --format pretty

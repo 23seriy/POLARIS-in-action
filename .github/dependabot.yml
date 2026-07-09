@@ -29,3 +29,21 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "[deps] "
+
+  - package-ecosystem: "docker"
+    directory: "/apps/game-day-api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "[deps] "
+
+  - package-ecosystem: "docker"
+    directory: "/apps/bench-warmer"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "[deps] "

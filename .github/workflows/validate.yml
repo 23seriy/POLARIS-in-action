@@ -2,33 +2,42 @@ name: Validate
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   shellcheck:
     name: Shell Script Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
 
       - name: Run shellcheck on all scripts
-        run: |
-          shellcheck -x scripts/*.sh
-        continue-on-error: false
+        run: shellcheck -x scripts/*.sh
 
   yaml-lint:
     name: YAML Validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-yamllint
+          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install yamllint
         run: pip install yamllint
@@ -37,17 +46,22 @@ jobs:
         run: |
           find k8s -name '*.yaml' -print0 | xargs -0 yamllint -d relaxed
           yamllint -d relaxed polaris/*.yaml
-        continue-on-error: false
 
   polaris-config-validation:
     name: Polaris Config Syntax
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-pyyaml
+          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install PyYAML
         run: pip install pyyaml
@@ -69,7 +83,6 @@ jobs:
                       print(f"  ERROR: {config} is empty")
                       errors += 1
                       continue
-                  # Check that config has a 'checks' section
                   if 'checks' not in doc:
                       print(f"  ERROR: {config} missing 'checks' section")
                       errors += 1
@@ -86,33 +99,35 @@ jobs:
               sys.exit(1)
           print("\n✓ All Polaris configs have valid YAML syntax and proper structure")
           EOF
-        continue-on-error: false
 
   docker-lint:
     name: Dockerfile Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - name: Install hadolint
+      - name: Install hadolint (integrity-verified)
         run: |
+          EXPECTED_SHA=$(wget -qO- https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64.sha256 | awk '{print $1}')
           wget -q -O /tmp/hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          ACTUAL_SHA=$(sha256sum /tmp/hadolint | awk '{print $1}')
+          if [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
+            echo "SHA256 mismatch for hadolint binary — aborting"
+            exit 1
+          fi
           chmod +x /tmp/hadolint
           sudo mv /tmp/hadolint /usr/local/bin/hadolint
 
       - name: Lint Dockerfiles
         run: |
-          echo "Checking Dockerfile syntax and best practices..."
-          hadolint apps/game-day-api/Dockerfile || true
-          hadolint apps/bench-warmer/Dockerfile || true
-          echo "✓ Dockerfile check complete"
-        continue-on-error: true
+          hadolint apps/game-day-api/Dockerfile
+          hadolint apps/bench-warmer/Dockerfile
 
   docs-check:
     name: Documentation Completeness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Check required docs exist
         run: |
@@ -138,7 +153,7 @@ jobs:
     name: Script Syntax Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Check bash syntax
         run: |
@@ -151,26 +166,34 @@ jobs:
     name: Python Code Quality
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-lint-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
 
       - name: Install linting tools
         run: pip install flake8 pylint black
 
       - name: Check Python syntax
+        # Syntax errors are blocking; style (flake8, black below) is advisory
         run: |
           python -m py_compile apps/game-day-api/app.py
           python -m py_compile apps/bench-warmer/app.py
 
       - name: Run flake8
-        run: |
-          flake8 apps/ --max-line-length=100
+        # Advisory: style preferences, not a quality gate
+        run: flake8 apps/ --max-line-length=100
         continue-on-error: true
 
       - name: Check code formatting with black
+        # Advisory: style preferences, not a quality gate
         run: black --check apps/
         continue-on-error: true
 
@@ -178,10 +201,10 @@ jobs:
     name: Markdown Linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: nosborn/github-action-markdown-cli@v3.5.0
+      - uses: nosborn/github-action-markdown-cli@508d6cefd8f0cc99eab5d2d4685b1d5f470042c1 # v3.5.0
         with:
-          files: .
+          files: "*.md docs/*.md"
+          ignore_path: .markdownlintignore
           config_file: .markdownlint.json
-        continue-on-error: true

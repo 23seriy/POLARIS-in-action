@@ -9,6 +9,7 @@ Common issues and solutions for polaris-in-action.
 **Symptoms**: `minikube start` hangs or fails with resource errors.
 
 **Fix**:
+
 ```bash
 # Check available resources
 docker system df
@@ -32,6 +33,7 @@ minikube delete -p polaris-demo
 **Symptoms**: `kubectl port-forward` fails or dashboard doesn't load.
 
 **Fix**:
+
 ```bash
 # Check Polaris pods are running
 kubectl get pods -n polaris
@@ -46,6 +48,7 @@ kubectl port-forward svc/polaris-dashboard 8080:80 -n polaris
 **Symptoms**: Bad pods are admitted even with webhook enabled.
 
 **Fix**:
+
 ```bash
 # Verify webhook is enabled
 kubectl get validatingwebhookconfigurations | grep polaris
@@ -55,13 +58,15 @@ kubectl logs -n polaris deploy/polaris-webhook -f
 helm get values polaris -n polaris
 ```
 
-**Note**: Only `danger`-level checks block admission. `warning`-level checks pass through the webhook but appear in the dashboard. Use `config-strict.yaml` to promote all checks to danger.
+**Note**: Only `danger`-level checks block admission. `warning`-level checks pass through the webhook
+but appear in the dashboard. Use `config-strict.yaml` to promote all checks to danger.
 
 ### Polaris CLI not found
 
 **Symptoms**: `polaris: command not found`
 
 **Fix**:
+
 ```bash
 brew tap FairwindsOps/tap
 brew install FairwindsOps/tap/polaris
@@ -72,11 +77,14 @@ brew install FairwindsOps/tap/polaris
 **Symptoms**: Custom `teamLabelRequired` check doesn't appear in results.
 
 **Fix**:
+
 ```bash
 # Verify config is loaded with custom checks
-polaris audit --audit-path k8s/game-day-api.yaml --config polaris/config.yaml --format pretty | grep team
+polaris audit --audit-path k8s/game-day-api.yaml \
+    --config polaris/config.yaml --format pretty | grep team
 # Ensure the config file is passed to Helm
-helm upgrade polaris fairwinds-stable/polaris --namespace polaris --set-file config=polaris/config.yaml
+helm upgrade polaris fairwinds-stable/polaris \
+    --namespace polaris --set-file config=polaris/config.yaml
 ```
 
 ## Docker Issues
@@ -86,6 +94,7 @@ helm upgrade polaris fairwinds-stable/polaris --namespace polaris --set-file con
 **Symptoms**: Pods stuck in `ImagePullBackOff` or `ErrImagePull`.
 
 **Fix**:
+
 ```bash
 # Ensure you're using Minikube's Docker daemon
 eval "$(minikube docker-env -p polaris-demo)"
@@ -109,6 +118,7 @@ docker images | grep -E "game-day|bench-warmer"
 **Symptoms**: `Error: repo "fairwinds-stable" not found`
 
 **Fix**:
+
 ```bash
 helm repo add fairwinds-stable https://charts.fairwinds.com/stable --force-update
 helm repo update
@@ -119,6 +129,7 @@ helm repo update
 **Symptoms**: `Error: UPGRADE FAILED`
 
 **Fix**:
+
 ```bash
 # Check current release status
 helm list -n polaris
@@ -135,6 +146,7 @@ helm upgrade --install polaris fairwinds-stable/polaris --namespace polaris --cr
 **Symptoms**: `curl http://localhost:9080/games` returns connection refused.
 
 **Fix**:
+
 ```bash
 # Check pod status
 kubectl get pods -n polaris-demo -l app=game-day-api
