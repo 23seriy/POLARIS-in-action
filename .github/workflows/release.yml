@@ -23,8 +23,8 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#v}"
 
-          # Extract the block between "## [VERSION]" and the next "## [" line
-          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          # Pass VERSION as an awk variable to avoid shell interpolation into the program text
+          NOTES=$(awk -v ver="$VERSION" 'BEGIN{found=0} $0 == "## [" ver "]" || $0 ~ "^## \\[" ver "\\]"{found=1; next} found && /^## \[/{exit} found{print}' CHANGELOG.md)
 
           if [ -z "$NOTES" ]; then
             NOTES="Release ${TAG}. See CHANGELOG.md for details."

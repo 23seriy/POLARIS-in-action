@@ -35,6 +35,7 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "[deps] "
 
@@ -43,5 +44,6 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "[deps] "

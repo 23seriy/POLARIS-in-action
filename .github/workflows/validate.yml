@@ -182,6 +182,7 @@ jobs:
         run: pip install flake8 pylint black
 
       - name: Check Python syntax
+        # Syntax errors are blocking; style (flake8, black below) is advisory
         run: |
           python -m py_compile apps/game-day-api/app.py
           python -m py_compile apps/bench-warmer/app.py
